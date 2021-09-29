@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import multiprocessing
 import random
 
 import numpy as np
@@ -72,4 +73,4 @@ if __name__ == '__main__':
                         epochs=100,
                         use_multiprocessing=False,
                         validation_data=valid_data,
-                        workers=4)
+                        workers=multiprocessing.cpu_count())
