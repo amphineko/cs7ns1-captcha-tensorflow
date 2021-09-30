@@ -18,28 +18,21 @@ from model import (create_model, default_batch_size, default_epochs,
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+captcha_generator = ImageCaptcha(default_width, default_height)
+
 
 class CaptchaSequence(Sequence):
-    def __init__(self,
-                 captcha_length,
-                 captcha_symbols,
-                 batch_size,
-                 generator,
-                 width=128,
-                 height=64):
+    def __init__(self, captcha_length, captcha_symbols, batch_size):
         self.batch_size = batch_size
-        self.generator = generator
-        self.height = height
         self.n_class = len(captcha_symbols)
         self.n_len = captcha_length
         self.symbols = captcha_symbols
-        self.width = width
 
     def __len__(self):
         return self.batch_size
 
     def __getitem__(self, _):
-        X = np.zeros((self.batch_size, self.height, self.width, 3),
+        X = np.zeros((self.batch_size, default_height, default_width, 3),
                      dtype=np.float32)
         y = [
             np.zeros((self.batch_size, self.n_class), dtype=np.uint8)
@@ -49,7 +42,7 @@ class CaptchaSequence(Sequence):
         for i in range(self.batch_size):
             text = ''.join(
                 [random.choice(self.symbols) for _ in range(self.n_len)])
-            image = self.generator.generate_image(text)
+            image = captcha_generator.generate_image(text)
 
             X[i] = np.array(image) / 255.0
             for j, ch in enumerate(text):
@@ -61,9 +54,6 @@ class CaptchaSequence(Sequence):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('--height', default=default_height, type=int)
-    parser.add_argument('--width', default=default_width, type=int)
 
     parser.add_argument('--batch-size', default=default_batch_size, type=int)
     parser.add_argument('--epochs', default=default_epochs, type=int)
@@ -90,8 +80,6 @@ if __name__ == '__main__':
     logs_path = Path(args.model_name).with_suffix('.csv')
     resume_path = Path(args.model_name).with_suffix('.resume.h5')
 
-    captcha_generator = ImageCaptcha(width=128, height=64)
-
     if args.gpu:
         device = tf.device('/device:GPU:0')
 
@@ -103,7 +91,7 @@ if __name__ == '__main__':
 
     with device:
         model = create_model(args.captcha_length, len(symbols),
-                             (args.height, args.width, 3))
+                             (default_height, default_width, 3))
 
         if checkpoint_path.is_file():
             print('Loading checkpint from ' + checkpoint_path.name)
@@ -115,16 +103,10 @@ if __name__ == '__main__':
 
         training_data = CaptchaSequence(args.captcha_length,
                                         symbols,
-                                        batch_size=batch_size,
-                                        generator=captcha_generator,
-                                        height=args.height,
-                                        width=args.width)
+                                        batch_size=batch_size)
         validation_data = CaptchaSequence(args.captcha_length,
                                           symbols,
-                                          batch_size=validation_size,
-                                          generator=captcha_generator,
-                                          height=args.height,
-                                          width=args.width)
+                                          batch_size=validation_size)
 
         callbacks = [
             keras.callbacks.EarlyStopping(patience=3),
